@@ -1,112 +1,222 @@
-<!DOCTYPE html>
+<script>
+/*!
+ * ytgame-shim.js — drop-in replacement for the YouTube Playables Web SDK (ytgame.js).
+ *
+ * The genizymath "youtube-playables" wrappers ship a real ytgame.js plus an
+ * obfuscated ad/anti-tamper blob. Off YouTube, the real SDK's ad + data calls
+ * post to a parent frame that never answers, so they hang; the obf blob patched
+ * around that by loading an ad network (cdn.r9x.in / gn-math) and showing
+ * interstitials + sidebar/popup ads.
+ *
+ * strip_ads.py removes the obf blob and swaps ytgame.js for this file. Result:
+ *   - ad calls resolve instantly (no ad shown)
+ *   - saveData/loadData actually work, backed by localStorage
+ *   - every other call is a safe no-op
+ *   - unknown calls can't throw (Proxy fallback)
+ */
+(function () {
+  'use strict';
+  var KEY = 'ytg:' + (location.pathname || 'game');
+  var res = function (v) { return Promise.resolve(v); };
+  var noop = function () {};
+  var listeners = {};
+
+  function store(get, val) {
+    try {
+      if (get) return localStorage.getItem(KEY);
+      if (val == null) localStorage.removeItem(KEY);
+      else localStorage.setItem(KEY, String(val));
+    } catch (e) {}
+    return null;
+  }
+
+  var game = {
+    firstFrameReady: noop,
+    gameReady: noop,
+    loadingProgress: noop,
+    hasLoadingUI: function () { return false; },
+    onPause: function (cb) { listeners.pause = cb; },
+    onResume: function (cb) { listeners.resume = cb; },
+    saveData: function (d) { store(false, d); return res(); },
+    loadData: function () { return res(store(true) || ''); },
+    getData: function () { return store(true) || ''; }
+  };
+
+  var ads = {
+    requestInterstitialAd: function () { return res(); },
+    requestRewardedAd: function () { return res(); },
+    adBreak: function () { return res(); }
+  };
+
+  var system = {
+    getEngagementType: function () { return 'PLAYING'; },
+    getConfig: function () { return { engagementType: 'PLAYING' }; },
+    isAudioEnabled: function () { return true; },
+    onAudioEnabledChange: noop,
+    getLanguage: function () { return (navigator.language || 'en').slice(0, 2); },
+    getSurface: function () { return 'BROWSER'; }
+  };
+
+  var engagement = { sendAbandonment: noop };
+  var health = { logError: noop, logWarning: noop, stuck: noop, unstuck: noop };
+
+  // Any property/method we didn't define returns a chainable no-op that also
+  // works as a resolved promise, so `ytgame.whatever.foo().then(...)` never throws.
+  function chainNoop() {
+    var f = function () { return res(); };
+    return new Proxy(f, {
+      get: function (t, p) {
+        if (p === 'then' || p === 'catch' || p === 'finally') return undefined;
+        return chainNoop();
+      },
+      apply: function () { return res(); }
+    });
+  }
+  function wrap(obj) {
+    return new Proxy(obj, {
+      get: function (t, p) {
+        if (p in t) return t[p];
+        if (typeof p === 'symbol') return t[p];
+        return chainNoop();
+      }
+    });
+  }
+
+  var ytgame = {
+    SDK_VERSION: '1.7.0-shim',
+    IN_PLAYABLES_ENV: false,
+    game: wrap(game),
+    ads: wrap(ads),
+    system: wrap(system),
+    engagement: wrap(engagement),
+    health: wrap(health)
+  };
+
+  try { Object.defineProperty(window, 'ytgame', { value: wrap(ytgame), writable: false, configurable: true }); }
+  catch (e) { window.ytgame = wrap(ytgame); }
+
+  // Fire resume once, in case a game waits for it before starting.
+  setTimeout(function () { try { if (listeners.resume) listeners.resume(); } catch (e) {} }, 0);
+})();
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L7856P3VNT"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-L7856P3VNT');
+</script><!DOCTYPE html>
+
+
+<!-- Ultimate Game Stash file--> 
+<!-- For the regularly updating doc go to https://docs.google.com/document/d/1_FmH3BlSBQI7FGgAQL59-ZPe8eCxs35wel6JUyVaG8Q/ -->
+
+
 <html lang="en">
+
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Retro Bowl - Interactive Practice Portal</title>
+<base href="https://cdn.jsdelivr.net/gh/SenpaiX1/ghdfhres@latest/">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta charset="utf-8" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <title>Retro Bowl College</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
     body {
-      background-color: #121212;
-      color: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      overflow: hidden;
+      background: #000000;
+      color: #cccccc;
+      margin: 0px;
+      padding: 0px;
+      border: 0px;
     }
-    header {
-      width: 100%;
-      padding: 12px 24px;
-      background-color: #1e1e1e;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #333;
+
+
+    canvas {
+      image-rendering: pixelated;
+      -webkit-interpolation-mode: nearest-neighbor;
+      -ms-touch-action: none;
+      touch-action: none;
+      margin: 0px;
+      padding: 0px;
+      border: 0px;
     }
-    h1 {
-      font-size: 1.2rem;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      color: #e0e0e0;
-    }
-    .controls {
-      display: flex;
-      gap: 12px;
-    }
-    button {
-      background-color: #0d6efd;
-      color: #ffffff;
-      border: none;
-      padding: 8px 16px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-    }
-    button:hover {
-      background-color: #0b5ed7;
-    }
-    .game-container {
-      position: relative;
-      width: 100%;
-      flex-grow: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background-color: #000;
-    }
-    iframe {
+
+
+    :-webkit-full-screen #canvas {
       width: 100%;
       height: 100%;
-      border: none;
     }
-  </style>
+
+
+    :-webkit-full-screen {
+      width: 100%;
+      height: 100%;
+    }
+
+
+    /* Custom Runner Styles */
+    div.gm4html5_div_class {
+      margin: 0px;
+      padding: 0px;
+      border: 0px;
+    }
+
+
+    div.gm4html5_login {
+      padding: 20px;
+      position: absolute;
+      border: solid 2px #000000;
+      background-color: #404040;
+      color: #00ff00;
+      border-radius: 15px;
+      box-shadow: #101010 20px 20px 40px;
+    }
+
+
+    div.gm4html5_cancel_button {
+      float: right;
+    }
+
+
+    div.gm4html5_login_button {
+      float: left;
+    }
+
+
+    div.gm4html5_login_header {
+      text-align: center;
+    }
+
+
+    :-webkit-full-screen {
+      width: 100%;
+      height: 100%;
+    }
+  
+</style>
 </head>
+
+
 <body>
-
-  <header>
-    <h1>Retro Bowl</h1>
-    <div class="controls">
-      <button onclick="toggleFullscreen()">Fullscreen</button>
-    </div>
-  </header>
-
-  <div class="game-container">
-    <iframe 
-      id="game-frame" 
-      src="https://game316009.konggames.com/gamez/0031/6009/live/index.html" 
-      allowfullscreen="true"
-      webkitallowfullscreen="true"
-      mozallowfullscreen="true">
-    </iframe>
+  <div class="gm4html5_div_class" id="gm4html5_div_id">
+    <img src="html5game/splash.png" id="GM4HTML5_loadingscreen" alt="GameMaker:HTML5 loading screen" style="display:none;" />
+    <!-- Create the canvas element the game draws to -->
+    <canvas id="canvas" width="853" height="480" style="position: absolute; top: 50%; left: 50%; bottom: -50%; right: -50%; transform: translate(-50%, -50%);">
+      <p>Your browser doesn't support HTML5 canvas.</p>
+    </canvas>
   </div>
-
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/bubbls/UGS-Assets@1523e1e73e0b1c006b7e17639135d68b79f6e4d8/retro%20bowl/html5game/RetroBowl.js"></script>
+  <script src="poki-sdk.js"></script>
   <script>
-    function toggleFullscreen() {
-      const iframe = document.getElementById('game-frame');
-      if (!document.fullscreenElement) {
-        if (iframe.requestFullscreen) {
-          iframe.requestFullscreen();
-        } else if (iframe.webkitRequestFullscreen) {
-          iframe.webkitRequestFullscreen();
-        } else if (iframe.msRequestFullscreen) {
-          iframe.msRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        }
-      }
-    }
+    window.onload = GameMaker_Init;
   </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"94edd7826a3f8400","version":"2025.6.2","r":1,"token":"8be41b6e10e9479099c99f86c64d1a12","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}}}' crossorigin="anonymous"></script>
 
 </body>
+
+
 </html>
