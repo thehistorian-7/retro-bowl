@@ -1,564 +1,112 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>RetroBall</title>
-  <!-- Startup check, first in the page and in old-style JavaScript so any browser runs it before anything else can
-       hold it up: if the game hasn't started 5 seconds in (a script file blocked or stalled, e.g. by a school filter,
-       or a browser too old for the game's code), it says so on the page with what went wrong, since a school
-       Chromebook may have no console to look in. main.js sets RB_STARTED once the game is running and counts frames
-       in RB_FRAMES. With ?debug in the address a panel shows how the game is doing, live. -->
-  <script>
-    var RB_PROBLEMS = [];
-    var RB_T0 = Date.now();
-    window.addEventListener('error', function (e) {
-      var t = e.target;
-      if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) RB_PROBLEMS.push('Blocked or missing: ' + (t.src || t.href));
-      else RB_PROBLEMS.push((e.message || 'Error') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : ''));
-    }, true);
-    function rbBox(id, color) {
-      var box = document.getElementById(id);
-      if (box) return box;
-      box = document.createElement('pre');
-      box.id = id;
-      box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:100;margin:0;padding:8px;' +
-        'background:' + color + ';color:#f4f4f4;font:12px/1.4 monospace;white-space:pre-wrap;max-height:60vh;overflow:auto';
-      (document.body || document.documentElement).appendChild(box);
-      return box;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro Bowl - Interactive Practice Portal</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-    function rbProblems() {
-      return RB_PROBLEMS.length ? RB_PROBLEMS.slice(0, 6).join('\n') + (RB_PROBLEMS.length > 6 ? '\n...and ' + (RB_PROBLEMS.length - 6) + ' more' : '')
-        : 'No error was reported.';
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
     }
-    setTimeout(function () {
-      if (window.RB_STARTED || /[?&]debug/.test(location.search)) return;
-      rbBox('rb-startup', '#b13e53').textContent = 'The game did not start (page: ' + document.readyState + ').\n' +
-        rbProblems() + '\n' + navigator.userAgent;
-    }, 5000);
-    if (/[?&]debug/.test(location.search)) {
-      setInterval(function () {
-        var c = document.getElementById('game');
-        var s = document.getElementById('stage');
-        var r = c && c.getBoundingClientRect();
-        rbBox('rb-debug', '#29366f').textContent = 'RetroBall debug, ' + Math.round((Date.now() - RB_T0) / 1000) + ' s\n' +
-          'page: ' + document.readyState + '   started: ' + !!window.RB_STARTED + '   frames: ' + (window.RB_FRAMES || 0) + '\n' +
-          'window: ' + innerWidth + 'x' + innerHeight + ' @' + (window.devicePixelRatio || 1) + 'x   in a frame: ' + (window.top !== window) + '\n' +
-          'canvas: ' + (c ? c.width + 'x' + c.height + ' shown ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' at ' + Math.round(r.left) + ',' + Math.round(r.top) : 'missing') +
-          '   stage: ' + (s ? s.style.width + ' x ' + s.style.height : 'missing') + '\n' +
-          rbProblems() + '\n' + navigator.userAgent;
-      }, 1000);
+    header {
+      width: 100%;
+      padding: 12px 24px;
+      background-color: #1e1e1e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #333;
     }
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- The menus' font, loaded without holding up the page (a stalled request can't keep the game from starting). -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="style.css">
+    h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #e0e0e0;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+    button {
+      background-color: #0d6efd;
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    button:hover {
+      background-color: #0b5ed7;
+    }
+    .game-container {
+      position: relative;
+      width: 100%;
+      flex-grow: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #000;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
 </head>
 <body>
-  <noscript><p style="position:fixed;left:8px;right:8px;bottom:8px;margin:0;padding:8px;background:#b13e53;color:#f4f4f4;font:12px/1.4 monospace">JavaScript is turned off for this site, and the game needs it to run.</p></noscript>
-  <div id="stage">
-    <canvas id="game" width="640" height="360" tabindex="0"></canvas>
 
-    <button id="pause-btn" type="button" aria-label="Pause" aria-expanded="false" aria-controls="menu">
-      <span></span><span></span>
-    </button>
-
-    <!-- After a career game: Main menu, Next game (its challenges), Upgrades (aftergame.js) -->
-    <div id="after-game" role="group" aria-label="After the game" hidden></div>
-
-    <!-- Pause menu (the Side Rail design): a full-height dock on the right, the tabs down a rail on its left with
-         Resume, Restart and Main menu at the rail's foot, and the picked tab beside it (its reset button below it).
-         Its tabs come in two groups: Customize (Player, Upgrades, Gear) and Settings (Controls, UI, Testing). The main
-         menu's Customize and Settings open just their group; paused in a game it's Settings, plus Customize in a
-         Quick game only (menu.js). -->
-    <div id="menu" role="dialog" aria-label="Pause menu" hidden>
-      <div class="menu-rail">
-        <p class="rail-head" id="rail-head">Paused</p>
-        <div class="tabs" role="tablist" aria-label="Pause menu sections" aria-orientation="vertical">
-          <button type="button" class="tab" role="tab" data-panel="player-view" data-group="customize" aria-selected="true"><span class="ico" data-icon="jersey"></span>Player</button>
-          <button type="button" class="tab" role="tab" data-panel="upgrade-view" data-group="customize" aria-selected="false"><span class="ico" data-icon="star"></span>Upgrades</button>
-          <button type="button" class="tab" role="tab" data-panel="gear-view" data-group="customize" aria-selected="false"><span class="ico" data-icon="trophy"></span>Gear</button>
-          <button type="button" class="tab" role="tab" data-panel="controls-view" data-group="settings" aria-selected="false"><span class="ico" data-icon="pad"></span>Controls</button>
-          <button type="button" class="tab" role="tab" data-panel="ui-view" data-group="settings" aria-selected="false"><span class="ico" data-icon="gear"></span>UI</button>
-          <!-- Only with ?dev=1 in the address (see menu.js): playtesting tools, testing sliders and player tuning. -->
-          <button type="button" class="tab tab-dev" role="tab" data-panel="dev-view" data-group="settings" aria-selected="false" hidden><span class="ico" data-icon="cone"></span>Testing</button>
-        </div>
-        <span class="rail-space"></span>
-        <!-- In a game only (menu.js hides them when the menu was opened from the main menu). -->
-        <button type="button" class="btn rail-resume" id="resume">Resume</button>
-        <button type="button" class="btn btn-quiet" id="restart-game">Restart</button>
-        <button type="button" class="btn btn-quiet rail-leave" id="to-title">Main menu</button>
-      </div>
-
-      <div class="menu-main">
-        <div class="menu-body tab-panel" id="player-view" role="tabpanel">
-          <div class="preview-col">
-            <canvas id="preview" width="80" height="92" aria-label="Player preview"></canvas>
-            <div class="faces" role="group" aria-label="Pick a player to customize"></div>
-            <button type="button" class="btn btn-quiet" id="randomize-look">Randomize</button>
-          </div>
-
-          <div class="controls">
-            <div class="row">
-              <label for="skin">Skin</label>
-              <input type="color" id="skin" data-key="skin">
-              <input class="hex" data-key="skin" maxlength="7" spellcheck="false" aria-label="Skin hex">
-            </div>
-            <div class="row presets" id="skin-presets">
-              <span class="label preset-label">Recommended</span>
-            </div>
-            <div class="row">
-              <span class="label">Hair style</span>
-              <button type="button" class="step" data-step="-1" aria-label="Previous hair style">&lt;</button>
-              <span class="value" id="hair-style-name"></span>
-              <button type="button" class="step" data-step="1" aria-label="Next hair style">&gt;</button>
-            </div>
-            <div class="row">
-              <label for="hair">Hair</label>
-              <input type="color" id="hair" data-key="hair">
-              <input class="hex" data-key="hair" maxlength="7" spellcheck="false" aria-label="Hair hex">
-            </div>
-            <div class="row">
-              <label for="jersey">Jersey</label>
-              <input type="color" id="jersey" data-key="jersey">
-              <input class="hex" data-key="jersey" maxlength="7" spellcheck="false" aria-label="Jersey hex">
-            </div>
-            <div class="row">
-              <label for="shorts">Shorts</label>
-              <input type="color" id="shorts" data-key="shorts">
-              <input class="hex" data-key="shorts" maxlength="7" spellcheck="false" aria-label="Shorts hex">
-            </div>
-            <div class="row">
-              <label for="number">Number</label>
-              <input id="number" class="num" inputmode="numeric" maxlength="2" autocomplete="off">
-            </div>
-            <div class="row">
-              <label for="shoe">Shoes</label>
-              <input type="color" id="shoe" data-key="shoe">
-              <input class="hex" data-key="shoe" maxlength="7" spellcheck="false" aria-label="Shoes hex">
-            </div>
-            <div class="row">
-              <label for="laces">Laces</label>
-              <input type="color" id="laces" data-key="laces">
-              <input class="hex" data-key="laces" maxlength="7" spellcheck="false" aria-label="Laces hex">
-            </div>
-          </div>
-        </div>
-
-        <!-- Upgrades and names for each player on the user's team. Free to set for now; saved between visits. -->
-        <div class="tab-panel stack-view" id="upgrade-view" role="tabpanel" hidden>
-          <p class="test-note" id="upgrade-note"></p>
-          <div class="row player-pick">
-            <div class="faces" role="group" aria-label="Pick a player to upgrade"></div>
-            <input id="player-name" class="name" maxlength="12" spellcheck="false" autocomplete="off" aria-label="Player name">
-            <span class="player-num" id="player-num"></span>
-          </div>
-          <div class="row upgrade" data-upgrade="speed">
-            <span class="label">Speed</span>
-            <button type="button" class="step" data-delta="-1" aria-label="Lower speed">-</button>
-            <span class="pips" aria-hidden="true"></span>
-            <button type="button" class="step" data-delta="1" aria-label="Raise speed">+</button>
-            <span class="upgrade-effect"></span>
-          </div>
-          <div class="row upgrade" data-upgrade="shooting">
-            <span class="label">Shooting</span>
-            <button type="button" class="step" data-delta="-1" aria-label="Lower shooting">-</button>
-            <span class="pips" aria-hidden="true"></span>
-            <button type="button" class="step" data-delta="1" aria-label="Raise shooting">+</button>
-            <span class="upgrade-effect"></span>
-          </div>
-          <div class="row upgrade" data-upgrade="dunking">
-            <span class="label">Dunking</span>
-            <button type="button" class="step" data-delta="-1" aria-label="Lower dunking">-</button>
-            <span class="pips" aria-hidden="true"></span>
-            <button type="button" class="step" data-delta="1" aria-label="Raise dunking">+</button>
-            <span class="upgrade-effect"></span>
-          </div>
-          <div class="row upgrade" data-upgrade="defense">
-            <span class="label">Defense</span>
-            <button type="button" class="step" data-delta="-1" aria-label="Lower defense">-</button>
-            <span class="pips" aria-hidden="true"></span>
-            <button type="button" class="step" data-delta="1" aria-label="Raise defense">+</button>
-            <span class="upgrade-effect"></span>
-          </div>
-          <div class="row upgrade" data-upgrade="dash">
-            <span class="label">Dash</span>
-            <button type="button" class="step" data-delta="-1" aria-label="Lower dash">-</button>
-            <span class="pips" aria-hidden="true"></span>
-            <button type="button" class="step" data-delta="1" aria-label="Raise dash">+</button>
-            <span class="upgrade-effect"></span>
-          </div>
-        </div>
-
-        <!-- Testing (only with ?dev=1 in the address): playtesting tools, testing sliders and player tuning. -->
-        <div class="tab-panel stack-view" id="dev-view" role="tabpanel" hidden>
-          <!-- Tools that jump the game to the moment you want to check (menu.js; main.js does the work). The game ones
-               close the menu; each is disabled where it doesn't apply. -->
-          <div id="testing-tools">
-            <p class="test-note">Game (closes the menu)</p>
-            <div class="tool-grid">
-              <button type="button" class="btn btn-quiet" data-tool="endGame">End game</button>
-              <button type="button" class="btn btn-quiet" data-tool="endPeriod">End period</button>
-              <button type="button" class="btn btn-quiet" data-tool="tenSeconds">10 s left</button>
-              <button type="button" class="btn btn-quiet" data-tool="shotClock">Shot clock 3 s</button>
-              <button type="button" class="btn btn-quiet" data-tool="homePoints">Home +3</button>
-              <button type="button" class="btn btn-quiet" data-tool="awayPoints">Away +3</button>
-              <button type="button" class="btn btn-quiet" data-tool="ballToMe">Ball to me</button>
-              <button type="button" class="btn btn-quiet" data-tool="freeThrow" title="Your player is fouled and goes to the line">Free throw</button>
-            </div>
-            <p class="test-note">Career</p>
-            <div class="tool-grid">
-              <button type="button" class="btn btn-quiet" data-tool="tokens">+100 tokens</button>
-            <button type="button" class="btn btn-quiet" data-tool="allGear" title="Every cosmetic unlocked until the page reloads">All gear</button>
-            </div>
-          </div>
-
-          <!-- Odds: dunk outcome odds, AI level and crowd density. Not saved; a reload restores the defaults. -->
-          <div class="stack-view test-section" id="test-view">
-            <p class="test-note">Odds and AI (not saved)</p>
-            <p class="test-note">Dunk odds</p>
-            <div class="row">
-              <label for="hang-chance">Rim hang</label>
-              <input type="range" id="hang-chance" min="0" max="100" step="1" data-odds="hangChance">
-              <span class="value pct" id="hang-chance-value"></span>
-            </div>
-            <div class="row">
-              <label for="shatter-chance">Shatter</label>
-              <input type="range" id="shatter-chance" min="0" max="100" step="1" data-odds="shatterChance">
-              <span class="value pct" id="shatter-chance-value"></span>
-            </div>
-            <div class="row">
-              <span class="label">Normal</span>
-              <span class="slider-spacer"></span>
-              <span class="value pct" id="normal-chance-value"></span>
-            </div>
-            <p class="test-note">AI</p>
-            <div class="row">
-              <label for="ai-level">Demo AI</label>
-              <input type="range" id="ai-level" min="0" max="100" step="1">
-              <span class="value pct" id="ai-level-value"></span>
-            </div>
-            <p class="test-note">Arena</p>
-            <div class="row">
-              <label for="crowd-density">Crowd</label>
-              <input type="range" id="crowd-density" min="0" max="100" step="1">
-              <span class="value pct" id="crowd-density-value"></span>
-            </div>
-          </div>
-
-          <!-- Player tuning: every config value that shapes how players play, most important first (rows built by
-               menu.js from TUNING). Saved; a changed value can be put back one at a time or all at once. -->
-          <div class="stack-view test-section" id="tuning-view">
-            <div class="tuning-head">
-              <p class="test-note">Player tuning (saved)</p>
-              <button type="button" class="btn btn-quiet" id="reset-tuning">Reset all</button>
-            </div>
-            <div class="tuning-list" id="tuning-list"></div>
-          </div>
-        </div>
-
-        <!-- Gear: cosmetics unlocked by trophies (see Cosmetics): what the picked player wears, the team's kit and shoes,
-             and the ball, dunk trail, banner and rim for your games. Rows are built by menu.js. Saved. -->
-        <div class="tab-panel stack-view" id="gear-view" role="tabpanel" hidden>
-          <div class="row player-pick">
-            <div class="faces" role="group" aria-label="Pick a player to dress"></div>
-          </div>
-          <p class="test-note">This player</p>
-          <div class="gear-list" id="gear-player"></div>
-          <p class="test-note">The team</p>
-          <div class="gear-list" id="gear-team"></div>
-          <p class="test-note">Your games</p>
-          <div class="gear-list" id="gear-game"></div>
-          <p class="key-hint">Earn trophies to unlock more: each metal unlocks a style.</p>
-        </div>
-
-        <!-- Controls: dash timing and keybinds (rows are built by menu.js). Saved between visits. -->
-        <div class="tab-panel stack-view" id="controls-view" role="tabpanel" hidden>
-          <p class="test-note">Dash</p>
-          <div class="row">
-            <label for="double-tap">Double tap</label>
-            <input type="range" id="double-tap" min="50" max="400" step="5">
-            <span class="value pct" id="double-tap-value"></span>
-          </div>
-          <!-- Keybinds: whose keys (1 Player, or either player of 2 Player), a drawn keyboard with each action's keys in
-               its color, and a legend: click an action (or press Enter on it), then press or click its new key. -->
-          <div class="row key-sets" role="group" aria-label="Whose keys">
-            <button type="button" class="key-btn" data-key-set="solo" aria-pressed="true">1 Player</button>
-            <button type="button" class="key-btn" data-key-set="p1" aria-pressed="false">2P: P1</button>
-            <button type="button" class="key-btn" data-key-set="p2" aria-pressed="false">2P: P2</button>
-          </div>
-          <div class="keyboard" id="keyboard"></div>
-          <div class="key-legend" id="key-legend"></div>
-          <p class="key-hint" id="key-hint"></p>
-        </div>
-
-        <!-- On-screen display and sound. Saved between visits. -->
-        <div class="tab-panel stack-view" id="ui-view" role="tabpanel" hidden>
-          <p class="test-note">On screen</p>
-          <div class="row">
-            <span class="label">Stats</span>
-            <button type="button" class="key-btn" id="show-stats" aria-pressed="false" aria-label="Show stats"></button>
-            <span class="upgrade-effect">Score and shooting, top left</span>
-          </div>
-          <div class="row">
-            <span class="label">Shelf</span>
-            <button type="button" class="key-btn" id="show-trophies" aria-pressed="false" aria-label="Show the trophy shelf"></button>
-            <span class="upgrade-effect">Your trophies on top of the scorer's table</span>
-          </div>
-          <!-- Testing build only (?dev=1): see the Dynasty locker room before it's unlocked. -->
-          <div class="row" id="dynasty-test-row" hidden>
-            <span class="label">Dynasty</span>
-            <button type="button" class="key-btn" id="dynasty-test" aria-pressed="false" aria-label="Dynasty locker room (test)"></button>
-            <span class="upgrade-effect">Dev: the Dynasty locker room before its unlock</span>
-          </div>
-          <p class="test-note">Audio</p>
-          <div class="row">
-            <span class="label">Sound</span>
-            <button type="button" class="key-btn" id="sound-on" aria-pressed="false" aria-label="Sound"></button>
-          </div>
-          <div class="row">
-            <label for="sound-volume">Volume</label>
-            <input type="range" id="sound-volume" min="0" max="100" step="5">
-            <span class="value pct" id="sound-volume-value"></span>
-          </div>
-          <!-- Every trophy family's metal and next goal, and the secrets (??? until earned); built by menu.js. -->
-          <p class="test-note">Trophies</p>
-          <div class="trophy-list" id="trophy-list"></div>
-        </div>
-
-        <div class="menu-foot">
-          <button type="button" class="btn btn-quiet" id="reset-look" data-for="player-view">Reset look</button>
-          <button type="button" class="btn btn-quiet" id="reset-upgrades" data-for="upgrade-view" hidden>Reset</button>
-          <button type="button" class="btn btn-quiet" id="reset-odds" data-for="dev-view" hidden>Test defaults</button>
-          <button type="button" class="btn btn-quiet" id="reset-controls" data-for="controls-view" hidden>Defaults</button>
-        </div>
-      </div>
+  <header>
+    <h1>Retro Bowl</h1>
+    <div class="controls">
+      <button onclick="toggleFullscreen()">Fullscreen</button>
     </div>
+  </header>
 
-    <!-- Main menu: the game always opens here, with the AI playing itself behind it. Each mode's screen is a view
-         (title.js shows one at a time); Customize and Settings open the pause menu's tabs. -->
-    <div id="title" role="dialog" aria-label="Main menu" hidden>
-      <!-- Home (the Season Road design): the modes in a dock on the left, the career season as a road along the
-           bottom with a stop for every game, and the next game's challenges above this week's stop (title.js builds
-           the road and the challenges; picking a challenge tips off). The demo game shows through on the right. -->
-      <div class="title-view season-home" id="title-home">
-        <nav class="home-dock" aria-label="Modes">
-          <p class="dock-logo" aria-hidden="true">Retro<span>Ball</span></p>
-          <button type="button" class="dock-row" data-go="career">
-            <span class="ico" data-icon="trophy"></span>
-            <span class="mode-name">Career</span>
-            <span class="mode-desc" id="title-career-desc">Seasons, playoffs and upgrades</span>
-          </button>
-          <button type="button" class="dock-row" data-go="locker">
-            <span class="ico" data-icon="locker"></span>
-            <span class="mode-name">Locker room</span>
-            <span class="mode-desc">Quests, trophy case</span>
-          </button>
-          <button type="button" class="dock-row" data-go="casual">
-            <span class="ico" data-icon="ball"></span>
-            <span class="mode-name">Casual</span>
-            <span class="mode-desc">Quick game and practice</span>
-          </button>
-          <button type="button" class="dock-row" data-go="versus">
-            <span class="ico" data-icon="duo"></span>
-            <span class="mode-name">2 Player</span>
-            <span class="mode-desc">Local or online</span>
-          </button>
-          <span class="dock-sep"></span>
-          <button type="button" class="dock-row" data-go="customize">
-            <span class="ico" data-icon="jersey"></span>
-            <span class="mode-name">Customize</span>
-            <span class="mode-desc">Your team's look and names</span>
-          </button>
-          <button type="button" class="dock-row" data-go="settings">
-            <span class="ico" data-icon="gear"></span>
-            <span class="mode-name">Settings</span>
-            <span class="mode-desc">Controls and display</span>
-          </button>
-          <button type="button" class="dock-quick" id="fullscreen"><span class="ico" data-icon="full"></span>Fullscreen</button>
-        </nav>
-        <div class="home-pop" id="home-pop"></div>
-        <div class="home-road" id="home-road"></div>
-      </div>
-
-      <h1 class="title-logo">Retro<span>Ball</span></h1>
-      <div class="title-panel">
-        <!-- Career: built by title.js (season, challenges, upgrades, standings). Picking a challenge tips off. -->
-        <div class="title-view" id="title-career" hidden>
-          <div class="title-bar"><button type="button" class="btn btn-quiet title-back">Back</button><span class="title-heading">Career</span></div>
-          <div class="career-panel" id="career-panel"></div>
-        </div>
-
-        <!-- Casual (the Dock Drawer design): a drawer out of the dock with everything for a casual game: a 3v3 game with
-             its options indented under it, today's daily game, and the two practice drills. -->
-        <div class="title-view drawer-view" id="title-casual" hidden>
-          <div class="drawer-head"><span class="title-heading">Casual</span><button type="button" class="btn btn-quiet title-back">&lt; Close</button></div>
-          <button type="button" class="pick title-start" data-mode="3v3">
-            <span class="ico" data-icon="ball"></span><span class="mode-name">3v3 game</span><span class="pick-key">Tip off</span>
-            <span class="mode-desc">Full court, AI teammates and opponents</span>
-          </button>
-          <!-- The 3v3 game's options (Career and 2 Player games use the rules too). -->
-          <div class="pick-sub">
-            <div class="row court-row">
-              <span class="label">Court</span>
-              <button type="button" class="step" data-court-step="-1" aria-label="Previous court">&lt;</button>
-              <span class="value court-name"></span>
-              <button type="button" class="step" data-court-step="1" aria-label="Next court">&gt;</button>
-            </div>
-            <!-- How good the AI opponents are (DIFFICULTY; title.js marks the picked one). -->
-            <div class="row difficulty-row">
-              <span class="label">Difficulty</span>
-              <button type="button" class="key-btn" data-difficulty="0" aria-pressed="false">Rookie</button>
-              <button type="button" class="key-btn" data-difficulty="1" aria-pressed="false">Pro</button>
-              <button type="button" class="key-btn" data-difficulty="2" aria-pressed="false">All-Star</button>
-            </div>
-            <div class="row">
-              <label for="half-minutes">Halves</label>
-              <input type="number" id="half-minutes" class="num tuning-num" min="0.5" max="20" step="0.5">
-              <span class="upgrade-effect">minutes</span>
-            </div>
-            <div class="row">
-              <span class="label">Shot clock</span>
-              <button type="button" class="key-btn" id="shot-clock" aria-pressed="false" aria-label="Shot clock"></button>
-              <input type="number" id="shot-seconds" class="num" min="5" max="60" step="1" aria-label="Shot clock seconds">
-              <span class="upgrade-effect">s</span>
-            </div>
-            <div class="row">
-              <span class="label">Free throws</span>
-              <button type="button" class="key-btn" id="free-throws" aria-pressed="false" aria-label="Free throws"></button>
-            </div>
-          </div>
-          <!-- The daily game (daily.js): today's opponent and goal, your streak; title.js fills it in. -->
-          <button type="button" class="pick" id="daily-start">
-            <span class="ico" data-icon="trophy"></span><span class="mode-name">Daily game</span><span class="pick-key">Play</span>
-            <span class="mode-desc" id="daily-text"></span>
-          </button>
-          <p class="drawer-note">Practice</p>
-          <button type="button" class="pick title-start" data-mode="free">
-            <span class="ico" data-icon="cone"></span><span class="mode-name">Free shot</span><span></span>
-            <span class="mode-desc">Just you and the ball, either hoop</span>
-          </button>
-          <button type="button" class="pick title-start" data-mode="world">
-            <span class="ico" data-icon="cone"></span><span class="mode-name">Around the world</span><span class="pick-key" id="world-best"></span>
-            <span class="mode-desc">15 spots in order, timed</span>
-          </button>
-        </div>
-
-        <!-- 2 Player (the Dock Drawer design): Local (two people on one keyboard: picking a format starts it, with the
-             upgrade draft) and Online (host or join a code, the lobby finder; see net.js) as tabs. -->
-        <div class="title-view drawer-view" id="title-versus" hidden>
-          <div class="drawer-head"><span class="title-heading">2 Player</span><button type="button" class="btn btn-quiet title-back">&lt; Close</button></div>
-          <div class="drawer-tabs" role="tablist" aria-label="Local or online">
-            <button type="button" class="drawer-tab" role="tab" data-versus-tab="local" aria-selected="true">Local</button>
-            <button type="button" class="drawer-tab" role="tab" data-versus-tab="online" aria-selected="false">Online</button>
-          </div>
-          <div class="versus-panel" id="versus-local" role="tabpanel">
-            <!-- The court (Courts: the same pick as Casual). -->
-            <div class="row court-row">
-              <span class="label">Court</span>
-              <button type="button" class="step" data-court-step="-1" aria-label="Previous court">&lt;</button>
-              <span class="value court-name"></span>
-              <button type="button" class="step" data-court-step="1" aria-label="Next court">&gt;</button>
-            </div>
-            <button type="button" class="pick duo-format" data-format="vs3" aria-pressed="false">
-              <span class="ico" data-icon="duo"></span><span class="mode-name">Versus 3v3</span><span class="pick-key">Start</span>
-              <span class="mode-desc">Each runs a team with two AI teammates</span>
-            </button>
-            <button type="button" class="pick duo-format" data-format="vs1" aria-pressed="false">
-              <span class="ico" data-icon="duo"></span><span class="mode-name">Versus 1v1</span><span class="pick-key">Start</span>
-              <span class="mode-desc">Just the two of you, full court</span>
-            </button>
-            <button type="button" class="pick duo-format" data-format="coop" aria-pressed="false">
-              <span class="ico" data-icon="duo"></span><span class="mode-name">Co-op</span><span class="pick-key">Start</span>
-              <span class="mode-desc">You two plus an AI teammate vs three AI</span>
-            </button>
-            <div class="duo-keys" id="duo-keys"></div>
-            <p class="drawer-note">Next: the upgrade draft, both at once</p>
-          </div>
-          <div class="versus-panel" id="versus-online" role="tabpanel" hidden>
-            <div class="row">
-              <span class="label">Format</span>
-              <button type="button" class="key-btn" data-online-format="vs1" aria-pressed="false">1v1</button>
-              <button type="button" class="key-btn" data-online-format="vs3" aria-pressed="false">3v3</button>
-            </div>
-            <div class="row">
-              <span class="label">Network</span>
-              <button type="button" class="key-btn" data-network="internet" aria-pressed="false">Internet</button>
-              <button type="button" class="key-btn" data-network="local" aria-pressed="false">This PC</button>
-            </div>
-            <!-- The lobby, once both are in: who's playing, then the host starts the game (it runs on the host's computer). -->
-            <div class="online-lobby" id="online-lobby" hidden>
-              <p class="mode-name" id="online-lobby-title"></p>
-              <p class="mode-desc" id="online-lobby-text"></p>
-              <button type="button" class="btn" id="online-start">Start game</button>
-            </div>
-            <button type="button" class="pick" id="online-host">
-              <span class="ico" data-icon="globe"></span><span class="mode-name">Host a game</span><span class="pick-key">Host</span>
-              <span class="mode-desc" id="online-code">Get a 4-letter code to send a friend</span>
-            </button>
-            <div class="row">
-              <label for="online-join-code">Join code</label>
-              <input type="text" id="online-join-code" class="name" maxlength="4" spellcheck="false" autocomplete="off">
-              <button type="button" class="btn btn-quiet" id="online-join">Join</button>
-            </div>
-            <p class="drawer-note">Open games</p>
-            <div class="lobby-list" id="online-lobbies"></div>
-            <p class="mode-desc" id="online-status"></p>
-            <p class="drawer-note">Prototype: games go through a public relay</p>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- The locker room's talk panel (locker.js, the "Talk Time" design): the speaker's portrait, what they say and the
-         quest card with the answers; or the trophy case (its shelf); or the tunnel's "ready for the next game?". -->
-    <div id="locker-talk" class="locker-talk" role="dialog" aria-labelledby="locker-talk-name" hidden>
-      <canvas class="talk-portrait" id="locker-talk-portrait" width="24" height="26" aria-hidden="true"></canvas>
-      <div class="talk-words">
-        <p class="mode-name" id="locker-talk-name"></p>
-        <p class="talk-text" id="locker-talk-text"></p>
-      </div>
-      <div class="talk-card" id="locker-talk-card"></div>
-      <div class="talk-shelf" id="locker-talk-shelf"></div>
-    </div>
+  <div class="game-container">
+    <iframe 
+      id="game-frame" 
+      src="https://game316009.konggames.com/gamez/0031/6009/live/index.html" 
+      allowfullscreen="true"
+      webkitallowfullscreen="true"
+      mozallowfullscreen="true">
+    </iframe>
   </div>
 
-  <!-- Plain scripts (not modules) so the game runs straight from file:// as well as any web host. Order matters. -->
-  <script src="src/config.js"></script>
-  <script src="src/font.js"></script>
-  <script src="src/sprite.js"></script>
-  <script src="src/input.js"></script>
-  <script src="src/camera.js"></script>
-  <script src="src/courts.js"></script>
-  <script src="src/court.js"></script>
-  <script src="src/hoop.js"></script>
-  <script src="src/debris.js"></script>
-  <script src="src/bench.js"></script>
-  <script src="src/scoreboard.js"></script>
-  <script src="src/player.js"></script>
-  <script src="src/team.js"></script>
-  <script src="src/ball.js"></script>
-  <script src="src/hud.js"></script>
-  <script src="src/shooting.js"></script>
-  <script src="src/play.js"></script>
-  <script src="src/ai.js"></script>
-  <script src="src/ref.js"></script>
-  <script src="src/clock.js"></script>
-  <script src="src/practice.js"></script>
-  <script src="src/tuning.js"></script>
-  <script src="src/menu.js"></script>
-  <script src="src/sfx.js"></script>
-  <script src="src/trophies.js"></script>
-  <script src="src/cosmetics.js"></script>
-  <script src="src/career.js"></script>
-  <script src="src/daily.js"></script>
-  <script src="src/duo.js"></script>
-  <script src="src/net.js"></script>
-  <script src="src/quests.js"></script>
-  <script src="src/locker.js"></script>
-  <script src="src/title.js"></script>
-  <script src="src/aftergame.js"></script>
-  <script src="src/main.js"></script>
+  <script>
+    function toggleFullscreen() {
+      const iframe = document.getElementById('game-frame');
+      if (!document.fullscreenElement) {
+        if (iframe.requestFullscreen) {
+          iframe.requestFullscreen();
+        } else if (iframe.webkitRequestFullscreen) {
+          iframe.webkitRequestFullscreen();
+        } else if (iframe.msRequestFullscreen) {
+          iframe.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+  </script>
+
 </body>
 </html>
